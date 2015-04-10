@@ -4,7 +4,7 @@ Utility to be used within unison (http://www.cis.upenn.edu/~bcpierce/unison/) to
 
 # Dependencies
 
-regex-posix >= 0.95.1 
+regex-posix >= 0.95.1
 
 (It may be possible to relax version constraint)
 
@@ -15,24 +15,24 @@ Assuming you have root set to your home directory and merge_bash_history is in y
 Add following to your unsion .prf file
 
 ```
-merge = Name .bash_history -> merge_bash_history CURRENT1 CURRENT2 NEW
+merge = Name .bash_history -> cat CURRENT1 CURRENT2 | merge_bash_history > NEW
 backupcurrent = Name .bash_history
 ```
 
 # Manual usage
 
 ```
-merge_bash_history <INPUT-FILE1> <INPUT-FILE2> <MERGED-FILE>
+cat [INPUT-FILE1] [INPUT-FILE2] | merge_bash_history > [MERGED-FILE]
 ```
 
 # Limitations
 - Does not support line deletion (e.g. manual removal of lines from .bash_history file)
-- No validation of parameters and presence of files
 
 # Warnings
 - Sorts .bash_history file by timestamp if not sorted
+- removes duplicates (same timestamp and command)
 
-# Recommended Bash settings 
+# Recommended Bash settings
 
 ```
 shopt -s histappend

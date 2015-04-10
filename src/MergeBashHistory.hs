@@ -1,10 +1,9 @@
 
 import Data.List (sort)
-
 import System.Environment (getArgs)
-
 import Text.Printf (printf)
 import Text.Regex.Posix ((=~))
+
 
 type Timestamp = Integer
 type Record = (Timestamp, [String])
@@ -44,13 +43,12 @@ format [] = []
 format ((x, y) : xs) = t : y ++ format xs
   where t = printf "#%d" x
 
+main :: IO ()
 main = do
-         [a, b, x] <- getArgs
-         pa <- readFile a
-         pb <- readFile b
-         writeFile x $ unlines
-                     $ format
-                     $ dedup
-                     $ sort
-                     $ merge (tuples $ lines pa)
-                             (tuples $ lines pb)
+         i <- getContents
+         putStr $ unlines
+                $ format
+                $ dedup
+                $ sort
+                $ tuples
+                $ lines i
