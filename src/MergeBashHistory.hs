@@ -26,7 +26,7 @@ dedup :: [Record] -> [Record]
 dedup [] = []
 dedup [a] = [a]
 dedup (x : y : xs)
-  | x == y    = x : (dedup $ dropWhile (== x) xs)
+  | x == y    = x : dedup (dropWhile (== x) xs)
   | otherwise = x : dedup (y : xs)
 
 merge :: [Record] -> [Record] -> [Record]
