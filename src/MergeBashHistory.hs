@@ -1,6 +1,5 @@
 
 import Data.List (sort)
-import System.Environment (getArgs)
 import Text.Printf (printf)
 import Text.Regex.Posix ((=~))
 
@@ -18,7 +17,7 @@ parseTimestamp t
 
 tuples :: [String] -> [Record]
 tuples []       = []
-tuples [x]      = error "Corrupted input file. Hanging record"
+tuples [_]      = error "Corrupted input file. Hanging record"
 tuples (x : xs) = (parseTimestamp x, y) : tuples ys
   where (y, ys) = break isTimestamp xs
 
