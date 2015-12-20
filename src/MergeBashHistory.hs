@@ -1,53 +1,106 @@
+import Control.Applicative ((<|>))
 
-import Data.List (sort)
-import Text.Printf (printf)
-import Text.Regex.Posix ((=~))
+import Data.List.Ordered (merge, nub)
+import Data.Monoid ((<>))
+import qualified Data.Text as Text
+import Data.Text.IO as TIO (readFile, putStr)
 
+import Data.Attoparsec.Text
+
+import qualified Options.Applicative as OP
 
 type Timestamp = Integer
-type Record = (Timestamp, [String])
+type Command = Text.Text
 
-isTimestamp :: String -> Bool
-isTimestamp t = t =~ "^#[0-9]+$"
+data HistoryLine = Header Timestamp
+                 | Command Command
+                 deriving (Show)
 
-parseTimestamp :: String -> Timestamp
-parseTimestamp t
-  | isTimestamp t = read $ tail t
-  | otherwise     = error $ printf "Timestamp format not recognized. [%s]" t
+data HmbhError = ParseError String
+               | EmptyFile
+               | MissingHeader
 
-tuples :: [String] -> [Record]
-tuples []       = []
-tuples [_]      = error "Corrupted input file. Hanging record"
-tuples (x : xs) = (parseTimestamp x, y) : tuples ys
-  where (y, ys) = break isTimestamp xs
+instance Show HmbhError where
+  show (ParseError e) = "Error: Parser Error '" ++ e ++ "'"
+  show EmptyFile      = "Error: Merging with empty file"
+  show MissingHeader  = "Error: Missing header"
 
-dedup :: [Record] -> [Record]
-dedup [] = []
-dedup [a] = [a]
-dedup (x : y : xs)
-  | x == y    = x : dedup (dropWhile (== x) xs)
-  | otherwise = x : dedup (y : xs)
+data HistoryRecord = HistoryRecord { header   :: Timestamp
+                                   , commands :: [Command]
+                                   } deriving (Eq, Show)
 
-merge :: [Record] -> [Record] -> [Record]
-merge [] [] = []
-merge [] b  = b
-merge a  [] = a
-merge a@((timeA, dataA):as) b@((timeB, dataB):bs)
-  | timeA < timeB = (timeA, dataA) : merge as b
-  | timeA > timeB = (timeB, dataB) : merge a  bs
-  | otherwise     = (timeA, dataA) : merge as bs
+instance Ord HistoryRecord where
+  h1 `compare` h2 = header h1 `compare` header h2
 
-format :: [Record] -> [String]
-format [] = []
-format ((x, y) : xs) = t : y ++ format xs
-  where t = printf "#%d" x
+toText :: HistoryRecord -> Text.Text
+toText (HistoryRecord t c) = Text.unlines $ Text.pack ('#' : show t) : c
+
+emptyRecord :: Timestamp -> HistoryRecord
+emptyRecord t = HistoryRecord { header = t, commands = [] }
+
+appendCommand :: HistoryRecord -> Command -> HistoryRecord
+appendCommand hr c = hr { commands = commands hr ++ [c] }
+
+linesToRecords :: [HistoryLine] -> Either HmbhError [HistoryRecord]
+linesToRecords []             = Left EmptyFile
+linesToRecords (Command _: _) = Left MissingHeader
+linesToRecords (Header t: as) = Right $ squash $ foldr f (emptyRecord t, []) as
+  where f (Header  s) acc           = (emptyRecord s, squash acc)
+        f (Command c) (current, ps) = (appendCommand current c, ps)
+        squash (x, xs) = x : xs
+
+historyHeader :: Parser HistoryLine
+historyHeader =
+  do _ <- char '#'
+     t <- decimal
+     endOfLine
+     return $ Header t
+
+historyCommand :: Parser HistoryLine
+historyCommand =
+  do c <- takeTill isEndOfLine
+     endOfLine
+     return $ Command c
+
+historyLine :: Parser HistoryLine
+historyLine = historyHeader <|> historyCommand
+
+historyLines :: Parser [HistoryLine]
+historyLines = many' historyLine
+
+mergeRecords :: [HistoryRecord] -> [HistoryRecord] -> [HistoryRecord]
+mergeRecords a b = nub $ merge a b
+
+data HmbhO = HmbhO FilePath FilePath
+
+opParseFilePath :: OP.Parser FilePath
+opParseFilePath = OP.argument OP.str $ OP.metavar "FILE"
+
+opParseHmbhO :: OP.Parser HmbhO
+opParseHmbhO = HmbhO <$> opParseFilePath
+                     <*> opParseFilePath
+
+execOpParserHmbhO :: IO HmbhO
+execOpParserHmbhO = OP.execParser $ OP.info (OP.helper <*> opParseHmbhO) (OP.fullDesc <> OP.header "bash_history merger")
+
+mapLeft :: (a -> c) -> Either a b -> Either c b
+mapLeft f (Left l)  = Left $ f l
+mapLeft _ (Right r) = Right r
+
+parseFile :: Text.Text -> Either HmbhError [HistoryRecord]
+parseFile t = mapLeft ParseError (parseOnly historyLines t) >>= linesToRecords
+
+handleFile :: FilePath -> IO [HistoryRecord]
+handleFile fp =
+  do i <- TIO.readFile fp
+     case parseFile i of Left e -> error $ show e
+                         Right r -> return r
+
+hmbhHandler :: HmbhO -> IO ()
+hmbhHandler (HmbhO fp1 fp2) =
+  do f1 <- handleFile fp1
+     f2 <- handleFile fp2
+     mapM_ (TIO.putStr . toText) $ mergeRecords f1 f2
 
 main :: IO ()
-main = do
-         i <- getContents
-         putStr $ unlines
-                $ format
-                $ dedup
-                $ sort
-                $ tuples
-                $ lines i
+main = execOpParserHmbhO >>= hmbhHandler
