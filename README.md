@@ -1,12 +1,20 @@
-# merge_bash_history
+# Merge bash_history
 
-Utility to be used within unison (http://www.cis.upenn.edu/~bcpierce/unison/) to merge .bash_history files accross multiple machines. Written in haskell.
+Utility to be used with unison (http://www.cis.upenn.edu/~bcpierce/unison/) to merge .bash_history files accross multiple machines. Written in haskell.
 
-# Dependencies
+# Installation
 
-regex-posix >= 0.95.1
+Clone the repository
 
-(It may be possible to relax version constraint)
+```
+git clone https://github.com/j1r1k/merge_bash_history.git
+```
+
+Install using stack
+```
+cd merge_bash_history
+stack install
+```
 
 # Example configuration in unison preferences file
 
@@ -15,14 +23,14 @@ Assuming you have root set to your home directory and merge_bash_history is in y
 Add following to your unsion .prf file
 
 ```
-merge = Name .bash_history -> cat CURRENT1 CURRENT2 | merge_bash_history > NEW
+merge = Name .bash_history -> merge_bash_history CURRENT1 CURRENT2 > NEW
 backupcurrent = Name .bash_history
 ```
 
 # Manual usage
 
 ```
-cat [INPUT-FILE1] [INPUT-FILE2] | merge_bash_history > [MERGED-FILE]
+merge-bash_history [INPUT-FILE1] [INPUT-FILE2] > [MERGED-FILE]
 ```
 
 # Limitations
