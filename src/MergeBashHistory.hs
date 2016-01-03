@@ -12,7 +12,6 @@ import Control.Applicative ((<|>))
 
 import Data.EitherR (fmapL)
 import Data.List.Ordered (merge, nub)
-import Data.Monoid ((<>))
 import Data.Text (Text)
 import qualified Data.Text as Text
 
