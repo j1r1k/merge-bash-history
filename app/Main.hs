@@ -2,6 +2,7 @@ module Main where
 
 import MergeBashHistory
 
+import Data.Monoid ((<>))
 import Data.Text.IO as TIO (readFile, putStr)
 
 import Options.Applicative
